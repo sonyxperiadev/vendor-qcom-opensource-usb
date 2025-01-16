@@ -15,42 +15,59 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-#ifndef ANDROID_HARDWARE_USB_GADGET_V1_1_USBGADGET_H
-#define ANDROID_HARDWARE_USB_GADGET_V1_1_USBGADGET_H
+#ifndef ANDROID_HARDWARE_USB_GADGET_QTI_USBGADGET_H
+#define ANDROID_HARDWARE_USB_GADGET_QTI_USBGADGET_H
 
-#include <android/hardware/usb/gadget/1.1/IUsbGadget.h>
-#include <hidl/Status.h>
+#include <aidl/android/hardware/usb/gadget/BnUsbGadget.h>
+#include <aidl/android/hardware/usb/gadget/BnUsbGadgetCallback.h>
+#include <aidl/android/hardware/usb/gadget/GadgetFunction.h>
+#include <aidl/android/hardware/usb/gadget/IUsbGadget.h>
+#include <aidl/android/hardware/usb/gadget/IUsbGadgetCallback.h>
 #include <mutex>
 
+namespace aidl {
 namespace android {
 namespace hardware {
 namespace usb {
 namespace gadget {
-namespace V1_1 {
-namespace implementation {
 
+using ::aidl::android::hardware::usb::gadget::GadgetFunction;
+using ::aidl::android::hardware::usb::gadget::IUsbGadgetCallback;
+using ::aidl::android::hardware::usb::gadget::IUsbGadget;
+using ::aidl::android::hardware::usb::gadget::Status;
+using ::aidl::android::hardware::usb::gadget::UsbSpeed;
 using ::android::hardware::Return;
 using ::android::hardware::usb::gadget::MonitorFfs;
+using ::ndk::ScopedAStatus;
+using ::std::shared_ptr;
 
-struct UsbGadget : public IUsbGadget {
+struct UsbGadget : public BnUsbGadget {
   UsbGadget(const char* const gadget);
 
-  Return<void> setCurrentUsbFunctions(uint64_t functions,
-                                      const sp<V1_0::IUsbGadgetCallback>& callback,
-                                      uint64_t timeout) override;
+  ScopedAStatus setCurrentUsbFunctions(int64_t functions,
+            const shared_ptr<IUsbGadgetCallback> &callback,
+            int64_t timeoutMs, int64_t in_transactionId) override;
 
-  Return<void> getCurrentUsbFunctions(
-      const sp<V1_0::IUsbGadgetCallback>& callback) override;
+  ScopedAStatus getCurrentUsbFunctions(const shared_ptr<IUsbGadgetCallback> &callback,
+	    int64_t in_transactionId) override;
 
-  Return<Status> reset() override;
+  ScopedAStatus reset(const shared_ptr<IUsbGadgetCallback> &callback,
+            int64_t in_transactionId) override;
+
+  ScopedAStatus getUsbSpeed(const shared_ptr<IUsbGadgetCallback> &callback,
+	    int64_t in_transactionId) override;
 
 private:
-  V1_0::Status tearDownGadget();
-  V1_0::Status setupFunctions(uint64_t functions,
-                              const sp<V1_0::IUsbGadgetCallback>& callback,
-                              uint64_t timeout);
+  Status tearDownGadget();
+  Status setupFunctions(int64_t functions,
+                        const shared_ptr<IUsbGadgetCallback> &callback,
+                        int64_t timeout, int64_t in_transactionId);
   int addFunctionsFromPropString(std::string prop, bool &ffsEnabled, int &i);
 
   MonitorFfs mMonitorFfs;
@@ -62,11 +79,10 @@ private:
   bool mCurrentUsbFunctionsApplied;
 };
 
-}  // namespace implementation
-}  // namespace V1_1
 }  // namespace gadget
 }  // namespace usb
 }  // namespace hardware
 }  // namespace android
+}  // namespace aidl
 
-#endif  // ANDROID_HARDWARE_USB_V1_1_USBGADGET_H
+#endif  // ANDROID_HARDWARE_USB_GADGET_QTI_USBGADGET_H
