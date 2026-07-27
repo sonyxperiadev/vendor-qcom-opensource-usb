@@ -53,6 +53,7 @@
 #define PERSIST_VENDOR_USB_EXTRA_PROP "persist.vendor.usb.config.extra"
 #define QDSS_INST_NAME_PROP "vendor.usb.qdss.inst.name"
 #define CONFIG_STRING CONFIG_PATH "strings/0x409/configuration"
+#define VENDOR_USB_PID_SUFFIX_PROP "ro.vendor.usb.pid_suffix"
 
 namespace aidl {
 namespace android {
@@ -71,6 +72,8 @@ using ::android::hardware::usb::gadget::linkFunction;
 using ::android::hardware::usb::gadget::resetGadget;
 using ::android::hardware::usb::gadget::setVidPid;
 using ::android::hardware::usb::gadget::unlinkFunctions;
+
+static const char* SONY_USB_VENDOR_ID_STR = "0x0fce";
 
 static std::map<std::string, std::tuple<std::string, std::string, std::string> >
 supported_compositions;
@@ -282,67 +285,96 @@ int UsbGadget::addFunctionsFromPropString(std::string prop, bool &ffsEnabled, in
   return 0;
 }
 
+/*
+ * Sony Xperia USB compositions
+ *
+ * Following are the triggers to configure various
+ * combinations of functions into a USB composition.
+ *
+ * The PID format is designed as follows:
+ *
+ *   USB mode            PREFIX
+ *  ------------------------------
+ *   mtp                 0
+ *   adb                 3
+ *   mtp,adb             5
+ *   rndis               7
+ *   rndis,adb           8
+ *   ptp                 a
+ *   ptp,adb             b
+ *   midi                c
+ *   midi,adb            d
+ *   offline charger     e
+ *
+ * Default PID suffix is 20d but each device model may
+ * define its own PID suffix. The final USB Product ID
+ * is formed by combining the mode-specific prefix with
+ * the device-specific suffix.
+ */
+
 static Status validateAndSetVidPid(uint64_t functions) {
   ::android::hardware::usb::gadget::V1_0::Status ret =
     ::android::hardware::usb::gadget::V1_0::Status::SUCCESS;
+  const std::string productIdSuffixProp = GetProperty(VENDOR_USB_PID_SUFFIX_PROP, "20d");
+
   switch (functions) {
     case static_cast<uint64_t>(GadgetFunction::ADB):
-      ret = setVidPid("0x18d1", "0x4e11");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, std::format("0x3{}", productIdSuffixProp).c_str());
       break;
     case static_cast<uint64_t>(GadgetFunction::MTP):
-      ret = setVidPid("0x18d1", "0x4ee1");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, std::format("0x0{}", productIdSuffixProp).c_str());
       break;
     case GadgetFunction::ADB | GadgetFunction::MTP:
-      ret = setVidPid("0x18d1", "0x4ee2");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, std::format("0x5{}", productIdSuffixProp).c_str());
       break;
     case static_cast<uint64_t>(GadgetFunction::RNDIS):
-      ret = setVidPid("0x18d1", "0x4ee3");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, std::format("0x7{}", productIdSuffixProp).c_str());
       break;
     case GadgetFunction::ADB | GadgetFunction::RNDIS:
-      ret = setVidPid("0x18d1", "0x4ee4");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, std::format("0x8{}", productIdSuffixProp).c_str());
       break;
     case static_cast<uint64_t>(GadgetFunction::PTP):
-      ret = setVidPid("0x18d1", "0x4ee5");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, std::format("0xa{}", productIdSuffixProp).c_str());
       break;
     case GadgetFunction::ADB | GadgetFunction::PTP:
-      ret = setVidPid("0x18d1", "0x4ee6");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, std::format("0xb{}", productIdSuffixProp).c_str());
       break;
     case static_cast<uint64_t>(GadgetFunction::MIDI):
-      ret = setVidPid("0x18d1", "0x4ee8");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, std::format("0xc{}", productIdSuffixProp).c_str());
       break;
     case GadgetFunction::ADB | GadgetFunction::MIDI:
-      ret = setVidPid("0x18d1", "0x4ee9");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, std::format("0xd{}", productIdSuffixProp).c_str());
       break;
     case static_cast<uint64_t>(GadgetFunction::ACCESSORY):
-      ret = setVidPid("0x18d1", "0x2d00");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x2d00");
       break;
     case GadgetFunction::ADB | GadgetFunction::ACCESSORY:
-      ret = setVidPid("0x18d1", "0x2d01");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x2d01");
       break;
     case static_cast<uint64_t>(GadgetFunction::AUDIO_SOURCE):
-      ret = setVidPid("0x18d1", "0x2d02");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x2d02");
       break;
     case GadgetFunction::ADB | GadgetFunction::AUDIO_SOURCE:
-      ret = setVidPid("0x18d1", "0x2d03");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x2d03");
       break;
     case GadgetFunction::ACCESSORY | GadgetFunction::AUDIO_SOURCE:
-      ret = setVidPid("0x18d1", "0x2d04");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x2d04");
       break;
     case GadgetFunction::ADB | GadgetFunction::ACCESSORY |
 	    GadgetFunction::AUDIO_SOURCE:
-      ret = setVidPid("0x18d1", "0x2d05");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x2d05");
       break;
     case static_cast<uint64_t>(GadgetFunction::NCM):
-      ret = setVidPid("0x18d1", "0x4eeb");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x4eeb");
       break;
     case GadgetFunction::ADB | GadgetFunction::NCM:
-      ret = setVidPid("0x18d1", "0x4eec");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x4eec");
       break;
     case GadgetFunction::UVC:
-      ret = setVidPid("0x18d1", "0x4eed");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x4eed");
       break;
     case GadgetFunction::ADB | GadgetFunction::UVC:
-      ret = setVidPid("0x18d1", "0x4eee");
+      ret = setVidPid(SONY_USB_VENDOR_ID_STR, "0x4eee");
       break;
     default:
       ALOGE("Combination not supported");
